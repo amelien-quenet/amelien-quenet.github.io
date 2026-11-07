@@ -1,30 +1,30 @@
 [
   {
-    "objectID": "about.html",
-    "href": "about.html",
-    "title": "About",
-    "section": "",
-    "text": "About this blog"
-  },
-  {
-    "objectID": "posts/welcome/index.html",
-    "href": "posts/welcome/index.html",
-    "title": "Welcome To My Blog",
-    "section": "",
-    "text": "This is the first post in a Quarto blog. Welcome!\n\nSince this post doesn’t specify an explicit image, the first image in the post will be used in the listing page of posts."
-  },
-  {
-    "objectID": "posts/post-with-code/index.html",
-    "href": "posts/post-with-code/index.html",
-    "title": "Post With Code",
-    "section": "",
-    "text": "This is a post with executable code."
-  },
-  {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "Investigating Chronos2",
+    "title": "Investigating Chronos-2",
     "section": "",
-    "text": "Post With Code\n\n\n\nnews\n\ncode\n\nanalysis\n\n\n\n\n\n\n\n\n\nSep 25, 2026\n\n\nHarlow Malloc\n\n\n\n\n\n\n\n\n\n\n\n\nWelcome To My Blog\n\n\n\nnews\n\n\n\n\n\n\n\n\n\nSep 22, 2026\n\n\nTristan O’Malley\n\n\n\n\n\nNo matching items"
+    "text": "Foundation models for time series are sold as a replacement for the feature engineering that gradient-boosted trees need: no lags to design, no calendar to encode, no per-series training. This series tests that claim on data where it is hard to be right — the M5 Forecasting — Accuracy panel, 30,490 item×store series of daily Walmart sales, 68% of days zero, a median series selling 0.45 units a day, forecast 28 days ahead.\nM5 was chosen for two specific reasons rather than its fame. Chronos-2 has no training leakage on it, so a zero-shot number means something. And its dynamics are mostly endogenous: on fev-bench the multivariate model beats its univariate sibling by a hair (WQL 0.555 vs 0.559), which says the cross-series machinery has little to feed on here. That makes it a clean test of the model itself rather than of the covariates one can invent around it."
+  },
+  {
+    "objectID": "index.html#the-question",
+    "href": "index.html#the-question",
+    "title": "Investigating Chronos-2",
+    "section": "",
+    "text": "Foundation models for time series are sold as a replacement for the feature engineering that gradient-boosted trees need: no lags to design, no calendar to encode, no per-series training. This series tests that claim on data where it is hard to be right — the M5 Forecasting — Accuracy panel, 30,490 item×store series of daily Walmart sales, 68% of days zero, a median series selling 0.45 units a day, forecast 28 days ahead.\nM5 was chosen for two specific reasons rather than its fame. Chronos-2 has no training leakage on it, so a zero-shot number means something. And its dynamics are mostly endogenous: on fev-bench the multivariate model beats its univariate sibling by a hair (WQL 0.555 vs 0.559), which says the cross-series machinery has little to feed on here. That makes it a clean test of the model itself rather than of the covariates one can invent around it."
+  },
+  {
+    "objectID": "index.html#what-the-three-parts-do",
+    "href": "index.html#what-the-three-parts-do",
+    "title": "Investigating Chronos-2",
+    "section": "What the three parts do",
+    "text": "What the three parts do\nThe order matters: each part exists because the previous one left a question open. The third one ends without a verdict, and that is reported rather than smoothed over — the test it runs disqualifies its own key instrument, which is more useful to know than a tidy conclusion would have been.\n\n\n\n\nNo matching items"
+  },
+  {
+    "objectID": "index.html#how-to-read-the-numbers",
+    "href": "index.html#how-to-read-the-numbers",
+    "title": "Investigating Chronos-2",
+    "section": "How to read the numbers",
+    "text": "How to read the numbers\nThree commitments, kept throughout, because they are what separates a benchmark from a demonstration:\n\nEvery choice is made on a validation origin (2016-03-27) and measured once on a test origin (2016-04-24). Nothing is selected on the window it is scored on.\nThe evaluation roster is frozen before any model runs, and every metric is reported next to the number of series it was computed on.\nAny two numbers whose difference is interpreted share their hardware. CPU and GPU disagree in the third decimal of WQL, which is enough to invert a close ranking, so the Chronos-2 corpus is entirely GPU and every artifact carries the device it was produced on.\n\nCode and artifacts: m5-chronos2."
   }
 ]

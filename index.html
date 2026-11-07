@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Investigating Chronos2</title>
+<title>Investigating Chronos-2</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -78,20 +78,20 @@ ul.task-list li input[type="checkbox"] {
 <script>
 
   window.document.addEventListener("DOMContentLoaded", function (_event) {
-    const listingTargetEl = window.document.querySelector('#listing-listing .list');
+    const listingTargetEl = window.document.querySelector('#listing-series .list');
     if (!listingTargetEl) {
       // No listing discovered, do not attach.
       return; 
     }
 
     const options = {
-      valueNames: ['listing-date','listing-title','listing-author','listing-image','listing-description','listing-categories',{ data: ['index'] },{ data: ['categories'] },{ data: ['listing-date-sort'] },{ data: ['listing-file-modified-sort'] }],
+      valueNames: ['listing-title','listing-description','listing-reading-time','listing-date',{ data: ['index'] },{ data: ['categories'] },{ data: ['listing-date-sort'] },{ data: ['listing-file-modified-sort'] }],
       
-      searchColumns: ["listing-date","listing-title","listing-author","listing-image","listing-description","listing-categories"],
+      searchColumns: [],
     };
 
     window['quarto-listings'] = window['quarto-listings'] || {};
-    window['quarto-listings']['listing-listing'] = new List('listing-listing', options);
+    window['quarto-listings']['listing-series'] = new List('listing-series', options);
 
     if (window['quarto-listing-loaded']) {
       window['quarto-listing-loaded']();
@@ -136,7 +136,7 @@ window.Quarto = {
 </script>
 
 <link rel="stylesheet" href="styles.css">
-<link rel="alternate" type="application/rss+xml" title="Investigating Chronos2" href="index.xml" data-external="1"></head>
+<link rel="alternate" type="application/rss+xml" title="Investigating Chronos-2" href="index.xml" data-external="1"></head>
 
 <body class="nav-fixed quarto-light">
 
@@ -146,7 +146,7 @@ window.Quarto = {
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
-    <span class="navbar-title">Investigating Chronos2</span>
+    <span class="navbar-title">Investigating Chronos-2</span>
     </a>
   </div>
             <div id="quarto-search" class="" title="Search"></div>
@@ -160,12 +160,7 @@ window.Quarto = {
 <span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/"> <i class="bi bi-github" role="img">
-</i> 
-<span class="menu-text"></span></a>
-  </li>  
-  <li class="nav-item compact">
-    <a class="nav-link" href="https://bsky.app/"> <i class="bi bi-bluesky" role="img">
+    <a class="nav-link" href="https://github.com/amelien-quenet/m5-chronos2"> <i class="bi bi-github" role="img">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -180,7 +175,8 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-page-left">
-      <h1 class="title">Investigating Chronos2</h1>
+      <h1 class="title">Investigating Chronos-2</h1>
+            <p class="subtitle lead">What a time-series foundation model does, and does not, buy you on a hard retail panel</p>
                       </div>
   </div>
     
@@ -197,8 +193,16 @@ window.Quarto = {
 <!-- sidebar -->
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
-    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(2)</span></div><div class="category" data-category="YW5hbHlzaXM=">analysis <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Y29kZQ==">code <span class="quarto-category-count">(1)</span></div><div class="category" data-category="bmV3cw==">news <span class="quarto-category-count">(2)</span></div></div></div>
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-question" id="toc-the-question" class="nav-link active" data-scroll-target="#the-question">The question</a></li>
+  <li><a href="#what-the-three-parts-do" id="toc-what-the-three-parts-do" class="nav-link" data-scroll-target="#what-the-three-parts-do">What the three parts do</a></li>
+  <li><a href="#how-to-read-the-numbers" id="toc-how-to-read-the-numbers" class="nav-link" data-scroll-target="#how-to-read-the-numbers">How to read the numbers</a></li>
+  </ul>
+</nav>
+    </div>
 <!-- main -->
 <main class="content quarto-banner-title-block column-page-left" id="quarto-document-content">
 
@@ -206,79 +210,38 @@ window.Quarto = {
 
 
 
-
-
-
-
-<div class="quarto-listing quarto-listing-container-default" id="listing-listing">
+<section id="the-question" class="level2">
+<h2 class="anchored" data-anchor-id="the-question">The question</h2>
+<p>Foundation models for time series are sold as a replacement for the feature engineering that gradient-boosted trees need: no lags to design, no calendar to encode, no per-series training. This series tests that claim on data where it is hard to be right — the <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">M5 Forecasting — Accuracy</a> panel, 30,490 item×store series of daily Walmart sales, 68% of days zero, a median series selling 0.45 units a day, forecast 28 days ahead.</p>
+<p>M5 was chosen for two specific reasons rather than its fame. Chronos-2 has <strong>no training leakage</strong> on it, so a zero-shot number means something. And its dynamics are mostly <strong>endogenous</strong>: on fev-bench the multivariate model beats its univariate sibling by a hair (WQL 0.555 vs 0.559), which says the cross-series machinery has little to feed on here. That makes it a clean test of the model itself rather than of the covariates one can invent around it.</p>
+</section>
+<section id="what-the-three-parts-do" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-three-parts-do">What the three parts do</h2>
+<p>The order matters: each part exists because the previous one left a question open. The third one ends without a verdict, and that is reported rather than smoothed over — the test it runs disqualifies its own key instrument, which is more useful to know than a tidy conclusion would have been.</p>
+<div id="listing-series" class="quarto-listing quarto-listing-container-default">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="bmV3cyUyQ2NvZGUlMkNhbmFseXNpcw==" data-listing-date-sort="1790287200000" data-listing-file-modified-sort="1790354683472" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1" data-listing-word-count-sort="7">
-<div class="thumbnail"><a href="./posts/post-with-code/index.html" class="no-external">
 
-<img loading="lazy" src="./posts/post-with-code/image.jpg" class="thumbnail-image">
-
-</a></div>
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/post-with-code/index.html" class="no-external">Post With Code</a>
-</h3>
-<div class="listing-categories">
-
-<div class="listing-category" onclick="window.quartoListingCategory('bmV3cw=='); return false;">news</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('Y29kZQ=='); return false;">code</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('YW5hbHlzaXM='); return false;">analysis</div>
-
-</div>
-<div class="delink listing-description"><a href="./posts/post-with-code/index.html" class="no-external">
-This is a post with executable code.
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/post-with-code/index.html" class="no-external">
-<div class="listing-date">
-Sep 25, 2026
-</div>
-<div class="listing-author">
-Harlow Malloc
-</div>
-</a>
-</div>
-</div>
-<div class="quarto-post image-right" data-index="1" data-categories="bmV3cw==" data-listing-date-sort="1790028000000" data-listing-file-modified-sort="1790354683472" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="1" data-listing-word-count-sort="32">
-<div class="thumbnail"><a href="./posts/welcome/index.html" class="no-external">
-
-<p class="card-img-top"><img loading='lazy' src="posts/welcome/thumbnail.jpg"  class="thumbnail-image card-img"/></p>
-
-</a></div>
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/welcome/index.html" class="no-external">Welcome To My Blog</a>
-</h3>
-<div class="listing-categories">
-
-<div class="listing-category" onclick="window.quartoListingCategory('bmV3cw=='); return false;">news</div>
-
-</div>
-<div class="delink listing-description"><a href="./posts/welcome/index.html" class="no-external">
-This is the first post in a Quarto blog. Welcome!
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/welcome/index.html" class="no-external">
-<div class="listing-date">
-Sep 22, 2026
-</div>
-<div class="listing-author">
-Tristan O’Malley
-</div>
-</a>
-</div>
-</div>
 </div>
 <div class="listing-no-matching d-none">No matching items</div>
-</div></main> <!-- /main -->
+</div>
+</section>
+<section id="how-to-read-the-numbers" class="level2">
+<h2 class="anchored" data-anchor-id="how-to-read-the-numbers">How to read the numbers</h2>
+<p>Three commitments, kept throughout, because they are what separates a benchmark from a demonstration:</p>
+<ul>
+<li><strong>Every choice is made on a validation origin</strong> (2016-03-27) and measured once on a test origin (2016-04-24). Nothing is selected on the window it is scored on.</li>
+<li><strong>The evaluation roster is frozen</strong> before any model runs, and every metric is reported next to the number of series it was computed on.</li>
+<li><strong>Any two numbers whose difference is interpreted share their hardware.</strong> CPU and GPU disagree in the third decimal of WQL, which is enough to invert a close ranking, so the Chronos-2 corpus is entirely GPU and every artifact carries the device it was produced on.</li>
+</ul>
+<p>Code and artifacts: <a href="https://github.com/amelien-quenet/m5-chronos2"><code>m5-chronos2</code></a>.</p>
+<!-- TODO (yours, not mine to invent): a short paragraph on why you did this —
+     first blog, what you wanted to learn, who you are writing for. -->
+
+
+
+</section>
+
+</main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
