@@ -4,16 +4,14 @@ image: profile.jpg
 about:
   template: jolla
   links:
-    - icon: bluesky
-      text: Bluesky
-      href: https://bsky.app/
     - icon: linkedin
       text: LinkedIn
-      href: https://linkedin.com
+      href: https://www.linkedin.com/in/
     - icon: github
-      text: Github
-      href: https://github.com
-
+      text: GitHub
+      href: https://github.com/amelien-quenet
 ---
 
-About this blog
+<!-- TODO: your own words. A few lines on who you are, what you work on, and what
+     this blog is for. Fill the LinkedIn href above with your profile URL, or
+     delete that entry. -->

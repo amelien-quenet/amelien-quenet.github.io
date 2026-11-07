@@ -1,15 +1,61 @@
 ---
-title: "Investigating Chronos2"
+title: "Investigating Chronos-2"
+subtitle: "What a time-series foundation model does, and does not, buy you on a hard retail panel"
 listing:
+  id: series
   contents: posts
-  feed: true
-  sort: "date desc"
+  sort: "order"
   type: default
-  categories: true
+  fields: [title, description, reading-time, date]
+  categories: false
   sort-ui: false
   filter-ui: false
+  feed: true
 page-layout: full
 title-block-banner: true
 ---
 
+## The question
 
+Foundation models for time series are sold as a replacement for the feature
+engineering that gradient-boosted trees need: no lags to design, no calendar to
+encode, no per-series training. This series tests that claim on data where it is
+hard to be right — the [M5 Forecasting --- Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy)
+panel, 30,490 item×store series of daily Walmart sales, 68% of days zero, a
+median series selling 0.45 units a day, forecast 28 days ahead.
+
+M5 was chosen for two specific reasons rather than its fame. Chronos-2 has **no
+training leakage** on it, so a zero-shot number means something. And its
+dynamics are mostly **endogenous**: on fev-bench the multivariate model beats
+its univariate sibling by a hair (WQL 0.555 vs 0.559), which says the
+cross-series machinery has little to feed on here. That makes it a clean test of
+the model itself rather than of the covariates one can invent around it.
+
+## What the three parts do
+
+The order matters: each part exists because the previous one left a question open. The third
+one ends without a verdict, and that is reported rather than smoothed over — the test it runs
+disqualifies its own key instrument, which is more useful to know than a tidy conclusion
+would have been.
+
+::: {#series}
+:::
+
+## How to read the numbers
+
+Three commitments, kept throughout, because they are what separates a benchmark
+from a demonstration:
+
+- **Every choice is made on a validation origin** (2016-03-27) and measured once
+  on a test origin (2016-04-24). Nothing is selected on the window it is scored on.
+- **The evaluation roster is frozen** before any model runs, and every metric is
+  reported next to the number of series it was computed on.
+- **Any two numbers whose difference is interpreted share their hardware.** CPU
+  and GPU disagree in the third decimal of WQL, which is enough to invert a close
+  ranking, so the Chronos-2 corpus is entirely GPU and every artifact carries the
+  device it was produced on.
+
+Code and artifacts: [`m5-chronos2`](https://github.com/amelien-quenet/m5-chronos2).
+
+<!-- TODO (yours, not mine to invent): a short paragraph on why you did this —
+     first blog, what you wanted to learn, who you are writing for. -->

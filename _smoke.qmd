@@ -1,0 +1,45 @@
+---
+title: "Render smoke test"
+---
+
+Not part of the site: files starting with `_` are excluded from project renders.
+Render it on demand to check the whole option-A path end to end:
+
+```
+cd blog && uv run quarto render _smoke.qmd
+```
+
+It passes when the study is importable, the artifacts are present, and the UMAP
+stack loads in this environment.
+
+```{python}
+import sys; sys.path.insert(0, ".")
+from _study import ARTIFACTS, ROSTER, STUDY, artifact, metrics, plots
+
+print("study     :", STUDY)
+print("artifacts :", ARTIFACTS, "->", "ok" if ARTIFACTS.is_dir() else "MISSING")
+print("roster    :", ROSTER)
+print("plots     :", [n for n in dir(plots) if n.startswith("plot") or n == "index_plot"])
+print("metrics   :", [n for n in dir(metrics) if n in {"compare", "score", "join_truth", "add_horizon"}])
+
+import umap
+print("umap      :", umap.__version__)
+
+import numpy, polars, pyarrow, matplotlib
+print("numpy     :", numpy.__version__, "(must be 1.x)")
+print("pyarrow   :", pyarrow.__version__, "(must be 25.x)")
+print("polars    :", polars.__version__)
+print("matplotlib:", matplotlib.__version__)
+```
+
+```{python}
+#| fig-cap: "The study's figure style, applied in the blog environment."
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(6, 2.4))
+ax.plot(np.arange(28), np.random.default_rng(42).poisson(0.45, 28))
+ax.set_title("style check - not data")
+ax.set_xlabel("day")
+plt.show()
+```

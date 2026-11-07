@@ -1,23 +1,26 @@
 project:
   type: website
+  # Every post executes from the blog root, so one relative path to the study
+  # works everywhere: ../m5-chronos2. Without this, each post would resolve
+  # paths against its own folder.
+  execute-dir: project
+  resources:
+    - "posts/**/*.mp4"
 
 website:
-  description: "A blog built with Quarto"
-  site-url: https://your-website-url.example.com # you must change this appropriately for RSS feeds to work properly
-  title: "Investigating Chronos2"
+  title: "Investigating Chronos-2"
+  description: "A measured study of a time-series foundation model on the M5 benchmark: a gradient-boosted baseline, the foundation model, and what it takes to find out whether the remaining headroom is reachable."
+  site-url: https://amelien-quenet.github.io
   navbar:
     right:
       - about.qmd
       - icon: github
-        href: https://github.com/
-      - icon: bluesky
-        href: https://bsky.app/
+        href: https://github.com/amelien-quenet/m5-chronos2
+
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    # `brand` was in the previous config but no _brand.yml exists in this repo,
+    # so it is dropped until one is written (see the publication procedure).
+    theme: cosmo
     css: styles.css
-
-
-
+    toc: true
