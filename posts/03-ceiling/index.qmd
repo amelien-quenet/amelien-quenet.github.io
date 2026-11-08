@@ -109,18 +109,62 @@ Before touching the real panel, I ran the method on a simulated one with known c
 the same panel size and noise level:
 
 ```{python}
-#| label: tbl-control
-#| tbl-cap: "Planted components against recovered ones, on a simulated panel of the same shape."
+#| label: fig-control
+#| fig-cap: "Left: planted components against recovered ones, on a simulated panel of the same shape as the real one. Right: the same estimator on a planted drift and nothing else — no constant item effect at all — as the drift's autocorrelation rises. The two together track what was planted; which of the two it lands in does not."
 #| code-fold: true
 control, planted = simulate_panel(n_series=250, n_origins=N_ORIGINS, seed=SEED)
 recovered = decompose(control).shares()
 components = ["series", "origin", "persistent", "transient", "noise"]
-md(pl.DataFrame({
-    "component": components,
-    "planted %": [100 * planted[c] for c in components],
-    "recovered %": [100 * recovered["series_adjusted" if c == "series" else c]
-                    for c in components],
-}), digits=1)
+planted_pct = np.array([100 * planted[c] for c in components])
+recovered_pct = np.array([100 * recovered["series_adjusted" if c == "series" else c]
+                          for c in components])
+
+# The same estimator, on a panel whose only stable signal is an AR(1) drift.
+DRIFT_GRID = [0.0, 0.2, 0.4, 0.6, 0.75, 0.85, 0.92, 0.97]
+drift = []
+for drift_rho in DRIFT_GRID:
+    simulated, truth = simulate_panel(n_series=250, n_origins=N_ORIGINS, rho=drift_rho,
+                                      sd_series=0.0, sd_persistent=0.33, seed=0)
+    split = decompose(simulated).shares()
+    drift.append((100 * split["series_adjusted"], 100 * split["persistent"],
+                  100 * (truth["series"] + truth["persistent"])))
+drift_item, drift_persistent, drift_planted = (np.array(v) for v in zip(*drift))
+drift_total_error = float(np.abs(drift_item + drift_persistent - drift_planted).max())
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 3.6))
+
+ax = axes[0]
+order = np.argsort(planted_pct)
+y = np.arange(len(components))
+ax.barh(y + 0.19, planted_pct[order], height=0.36, color=plots.GRID_COLOR, label="planted")
+ax.barh(y - 0.19, recovered_pct[order], height=0.36, color=plots.MAIN_COLOR,
+        label="recovered")
+for row, left, right in zip(y, planted_pct[order], recovered_pct[order]):
+    ax.text(max(left, right) + 1.2, row, f"{left:.0f} / {right:.0f}", va="center",
+            fontsize=8, color=plots.MUTED_TEXT_COLOR)
+ax.set_yticks(y); ax.set_yticklabels([components[i] for i in order])
+ax.set_xlim(0, max(planted_pct.max(), recovered_pct.max()) * 1.25)
+ax.set_xlabel("share of the variance budget (%)")
+ax.legend(fontsize=8, frameon=False, loc="lower right")
+ax.set_title("the estimator recovers what was planted", fontsize=9, loc="left",
+             color=plots.TEXT_COLOR)
+
+ax = axes[1]
+ax.plot(DRIFT_GRID, drift_planted, color=plots.MUTED_TEXT_COLOR, linestyle="--",
+        linewidth=1.4, label="planted (item + persistent)")
+ax.plot(DRIFT_GRID, drift_item + drift_persistent, color=plots.TEXT_COLOR, marker="o",
+        markersize=4, linewidth=1.8, label="recovered, the two together")
+ax.plot(DRIFT_GRID, drift_item, color=plots.MAIN_COLOR, marker="o", markersize=4,
+        linewidth=1.5, label="recovered as item")
+ax.plot(DRIFT_GRID, drift_persistent, color=plots.MAIN_COLOR, marker="o", markersize=4,
+        linewidth=1.5, linestyle=":", label="recovered as persistent")
+ax.set_xlabel("autocorrelation of the planted drift")
+ax.set_ylabel("share of the budget (%)")
+ax.set_title("but not which of the two it is", fontsize=9, loc="left",
+             color=plots.TEXT_COLOR)
+ax.legend(fontsize=7.5, frameon=False, loc="upper left")
+fig.tight_layout()
+plt.show()
 ```
 
 Two further controls run silently and both pass: a panel with no item effect returns 0.8%
@@ -128,13 +172,16 @@ after bias adjustment rather than the 4.5% the raw estimator reports, and a pure
 returns a persistence of +0.005 rather than the negative value double-centring would
 otherwise induce.
 
-The control also exposes the method's one real limit. A difficulty that **drifts slowly** is
-partly indistinguishable from a constant one over a panel spanning six months, so it gets
-shared between the item term and the persistent term. Sweeping the drift's autocorrelation
-from 0 to 0.97 moves the split between those two from 0.7%/0% to 15.9%/2.0% — while their
-**sum** stays put. So I report both readings: the item share answers *could a grouping fitted
-once and left alone help*, and the sum answers *is there anything stable at all, even if it
-has to be refitted*.
+The right panel is the method's one real limit. A slow **drift** is hard to tell from a
+constant difficulty over six months, and the estimator divides it badly: at an
+autocorrelation of `{python} f"{DRIFT_GRID[-1]}"`, a drift with *no* constant item effect
+planted anywhere comes back as a `{python} f"{drift_item[-1]:.0f}"`% **item** effect. The
+total it does get right, to within `{python} f"{drift_total_error:.1f}"` points everywhere on
+the grid.
+
+So I report both readings: the item share answers *could a grouping fitted once and left
+alone help*, and the sum answers *is there anything stable at all, even if it has to be
+refitted*.
 
 ## Where the error lives
 
@@ -221,9 +268,11 @@ and what comes out is the correlation between the underlying difficulties rather
 their noisy estimates.
 
 ```{python}
-#| label: tbl-attenuation
-#| tbl-cap: "The decomposition's prediction, the rank statistic's observation, and the correlation between the underlying difficulties."
+#| label: fig-attenuation
+#| fig-cap: "Left: what the decomposition predicts the rank correlation will be, what the rank statistic actually observes, and the correlation between the underlying difficulties once the window's sampling noise is divided out. The grey bar is the attenuation the blunt ruler costs. Right: observed minus predicted, for the two quantities."
 #| code-fold: true
+from matplotlib.lines import Line2D
+
 v_alpha = shares["series_adjusted"]
 v_pers, v_trans, v_noise = shares["persistent"], shares["transient"], shares["noise"]
 cell_variance = v_alpha + v_pers + v_trans + v_noise
@@ -239,21 +288,70 @@ attenuation = pl.DataFrame([
      "observed": ranks["first_vs_last"],
      "noise-corrected": v_alpha / (v_alpha + v_pers + v_trans)},
 ])
-md(attenuation, digits=3)
+
+predicted = attenuation["predicted"].to_numpy()
+observed = attenuation["observed"].to_numpy()
+corrected = attenuation["noise-corrected"].to_numpy()
+rows = np.arange(attenuation.height)[::-1]          # first quantity on top
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 2.9),
+                         gridspec_kw={"width_ratios": [1.7, 1]})
+
+ax = axes[0]
+for row, p, o, c in zip(rows, predicted, observed, corrected):
+    ax.plot([min(p, o), c], [row, row], color=plots.GRID_COLOR, linewidth=7,
+            solid_capstyle="round", zorder=1)
+    ax.scatter(p, row, s=80, facecolor="white", edgecolor=plots.MUTED_TEXT_COLOR,
+               linewidth=1.6, zorder=3)
+    ax.scatter(o, row, s=55, color=plots.MAIN_COLOR, zorder=4)
+    ax.scatter(c, row, s=80, color=plots.TEXT_COLOR, marker="D", zorder=3)
+ax.set_yticks(rows)
+ax.set_yticklabels(attenuation["quantity"].to_list())
+ax.set_ylim(-0.7, attenuation.height - 0.3)
+ax.set_xlim(0, 1)
+ax.axvline(0.5, color=plots.MUTED_TEXT_COLOR, linestyle=":", linewidth=1, zorder=0)
+ax.text(0.49, -0.62, "0.5: 'weak' for test-retest", ha="right", va="bottom",
+        color=plots.MUTED_TEXT_COLOR, fontsize=8)
+ax.set_xlabel("Spearman correlation of the difficulty ranking")
+ax.legend(handles=[
+    Line2D([], [], marker="o", linestyle="", markerfacecolor="white",
+           markeredgecolor=plots.MUTED_TEXT_COLOR, markersize=9, label="predicted"),
+    Line2D([], [], marker="o", linestyle="", color=plots.MAIN_COLOR,
+           markersize=8, label="observed"),
+    Line2D([], [], marker="D", linestyle="", color=plots.TEXT_COLOR,
+           markersize=8, label="noise-corrected"),
+], loc="lower left", bbox_to_anchor=(0, 1.02), ncol=3, frameon=False, fontsize=8)
+
+ax = axes[1]
+residual = observed - predicted
+span = float(np.abs(residual).max()) * 2.4
+ax.barh(rows, residual, color=plots.MAIN_COLOR, height=0.38)
+ax.axvline(0, color=plots.TEXT_COLOR, linewidth=1)
+for row, value in zip(rows, residual):
+    offset = 0.05 * span if value > 0 else -0.05 * span
+    ax.text(value + offset, row, f"{value:+.3f}", va="center",
+            ha="left" if value > 0 else "right", color=plots.TEXT_COLOR, fontsize=9)
+ax.set_yticks(rows); ax.set_yticklabels([]); ax.tick_params(left=False)
+ax.set_ylim(-0.7, attenuation.height - 0.3)
+ax.set_xlim(-span, span)
+ax.set_xlabel("observed − predicted")
+fig.tight_layout()
+plt.show()
 ```
 
 A single 7-day window is only `{python} f"{reliability:.0%}"` reliable: more than two fifths
 of its variance is the counting noise of an item that sells a handful of units a week. Seen
 through a ruler that blunt, **a difficulty ordering stable at
-`{python} f"{attenuation['noise-corrected'][0]:.2f}"` between consecutive origins can only
-show up as `{python} f"{attenuation['observed'][0]:+.2f}"`** — which is what it did, to
-within a few hundredths of the predicted value, on both rows, with the two residuals falling
-on opposite sides. That is what sampling variation looks like; a systematic error in the
-variance model would push both the same way.
+`{python} f"{attenuation['noise-corrected'][0]:.2f}"` can only show up as
+`{python} f"{attenuation['observed'][0]:+.2f}"`** — and the grey bar is what the bluntness
+costs.
+
+The residuals are the reassuring part: they fall on opposite sides of zero. A systematic
+error in the variance model would push both the same way.
 
 So the observed `{python} f"{ranks['consecutive_median']:+.2f}"` was never evidence of weak
-stability. It was evidence of a noisy ruler, and the agreement between the predicted and
-observed columns is the strongest internal check in this post: a variance model and a
+stability. It was evidence of a noisy ruler, and the agreement between prediction and
+observation is the strongest internal check in this post: a variance model and a
 distribution-free rank statistic, built on different assumptions, returning the same number.
 
 The six-month row says something further. Nearly all of the long-run agreement is the

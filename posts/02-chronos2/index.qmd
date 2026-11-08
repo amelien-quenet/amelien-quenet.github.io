@@ -139,9 +139,7 @@ another Monday.
 I tried four families, all on the validation window, all against zero-shot:
 
 ```{python}
-#| label: tbl-attempts
-#| tbl-cap: "Change against zero-shot, in %. Negative is better. `width` is the mean 20–80% band — an input the model cannot use tends to change how sure it is."
-#| code-fold: true
+#| echo: false
 attempt_files = {
     "calendar": "known_calendar",
     "price": "known_price",
@@ -168,9 +166,9 @@ reference_width = widths.filter(pl.col("model") == "zero-shot")["width"][0]
 widths = widths.with_columns(
     (100 * (pl.col("width") / reference_width - 1)).alias("width_change_%"))
 
-md(changes.join(widths.drop("width"), on="model")
-   .filter(pl.col("model") != "zero-shot")
-   .select("model", "WMAPE_change_%", "P90_change_%", "WQL_change_%", "width_change_%"))
+band = widths.filter(pl.col("model") != "zero-shot").sort("width_change_%")
+n_narrower = band.filter(pl.col("width_change_%") < 0).height
+narrowest, widest = band.row(0, named=True), band.row(-1, named=True)
 ```
 
 ```{python}
@@ -222,29 +220,98 @@ I also recorded the mean width of every run's 20–80% band, on the theory that 
 model cannot turn into a rule makes it less sure before it makes it worse*. A widening would
 be the signature of a useless input.
 
-That is not what happened. Seven of the eight attempts came back **narrower** than zero-shot
-while scoring worse — cross-learning narrowest of all, at −3.66%. The expected failure mode
-was hedging; the actual failure mode is **confidence that is not earned**. Only NaN-masking
-widened, by 11.3%, and it is also the one whose point forecast degraded most, which is at
-least self-consistent: told that a quarter of the history is unobserved, the model both
-loses the information and admits it.
+That is not what happened. `{python} f"{n_narrower}"` of the `{python} f"{band.height}"`
+attempts came back **narrower** than zero-shot while scoring worse — cross-learning narrowest
+of all, at `{python} f"{narrowest['width_change_%']:.2f}"`%. The expected failure mode was
+hedging; the actual failure mode is **confidence that is not earned**. Only NaN-masking
+widened, by `{python} f"{widest['width_change_%']:.1f}"`%, and it is also the one whose point
+forecast degraded most, which is at least self-consistent: told that a quarter of the history
+is unobserved, the model both loses the information and admits it.
 
 ### Are the long zero runs predictable at all?
 
 Before building anything on top of a forecast of them — a two-stage model, say — it is worth
-asking whether they can be forecast. Over the validation window, 2,000 of 13,244 scored
-(series, day) pairs are inside a real zero run. Two forecasts of them:
+asking whether they can be forecast at all. The second of those three encodings makes that
+easy to ask, once one thing about the model is said plainly.
+
+Chronos-2 can forecast several related series jointly. So instead of asking it for sales
+alone, that run asked it for **two channels per item**:
+
+- **sales**, in units — the thing actually being forecast;
+- **`is_blank`**, a 0/1 flag — *is this day inside a long zero run?*
+
+It returns a forecast of both for every day of the window. That gives two things to check:
+whether the blank channel is any good by itself, and whether it pushes the sales channel in
+the right direction.
+
+**By itself, it is not good.** Over the validation window, 2,000 of 13,244 scored
+(series, day) pairs sit inside a real zero run:
 
 | source | days flagged | precision | recall |
 |---|---|---|---|
-| the multivariate `is_blank` channel, median ≥ 0.5 | 1,483 | 0.55 | 0.41 |
+| the `is_blank` channel, median ≥ 0.5 | 1,483 | 0.55 | 0.41 |
 | read off the zero-shot sales forecast | 8,696 | 0.22 | 0.96 |
 
-Neither is usable. And the second target has a deeper problem: it is only worth having if a
-forecast zero run pulls the sales forecast down. Among the 2,106 days where the model is
-confident of one, its sales forecast is **above** the zero-shot forecast 38% of the time. The
-two channels are barely coupled, so the multivariate framing is not merely unhelpful — on
-more than a third of the days where it fires, it is internally incoherent.
+Neither is usable: the channel misses three fifths of the runs it should catch, and reading
+them off the sales forecast flags so many days that the flag means nothing.
+
+**The deeper problem is the second check.** The extra channel is only worth having if a
+forecast zero run drags the sales forecast **down**. That is directly testable, by comparing
+two sales forecasts of the same item on the same day, from two runs differing in exactly one
+respect:
+
+- **without the blank channel** — Chronos-2 given the sales history and nothing else, which
+  is the zero-shot run everything in this post is measured against;
+- **with it** — the same model, the same history, plus the blank-run channel alongside.
+
+Keep only the days where the run's own blank channel predicts a zero run, and every point
+should fall below the diagonal.
+
+```{python}
+#| label: fig-coupling
+#| fig-cap: "Two sales forecasts of the same item on the same day, from two runs differing only in whether Chronos-2 was also given the blank-run channel. Restricted to the days that channel predicts a zero run (median ≥ 0.5). A channel doing its job would put every point below the diagonal."
+#| code-fold: true
+multivariate = experiment("blank_second_target_both_channels")
+blank_median = (multivariate.filter(pl.col("target_name") == "is_blank")
+                .select("id", "origin", "date", pl.col("q0.5").alias("blank_median")))
+vanilla = pl.read_parquet(ARTIFACTS / "predictions" / f"chronos2_vanilla_{ROSTER}.parquet")
+
+coupling = (
+    on_validation(multivariate.filter(pl.col("target_name") == "sales")
+                  .drop("target_name"))
+    .select("id", "origin", "date", pl.col("y_pred").alias("second_target"))
+    .join(blank_median, on=["id", "origin", "date"])
+    .join(on_validation(vanilla).select("id", "origin", "date",
+                                        pl.col("y_pred").alias("zero_shot")),
+          on=["id", "origin", "date"])
+)
+fires = coupling.filter(pl.col("blank_median") >= 0.5)
+x = fires["zero_shot"].to_numpy()
+y = fires["second_target"].to_numpy()
+n_fires = fires.height
+share_above = float((y > x).mean())
+
+fig, ax = plt.subplots(figsize=(6.2, 4.2))
+limit = float(max(x.max(), y.max())) * 1.05
+ax.plot([0, limit], [0, limit], color=plots.TEXT_COLOR, linewidth=1, zorder=3)
+ax.scatter(x[y <= x], y[y <= x], s=9, alpha=0.30, color=plots.MUTED_TEXT_COLOR,
+           edgecolor="none", label="blank channel pulled sales down (as intended)")
+ax.scatter(x[y > x], y[y > x], s=9, alpha=0.45, color=plots.MAIN_COLOR,
+           edgecolor="none", label=f"it pushed them up ({share_above:.0%})")
+ax.set_xlim(0, limit); ax.set_ylim(0, limit)
+ax.set_xlabel("sales forecast WITHOUT the blank channel (units)")
+ax.set_ylabel("sales forecast WITH it (units)")
+ax.legend(fontsize=8, frameon=False, loc="upper left", markerscale=2)
+fig.tight_layout()
+plt.show()
+```
+
+They do not. On `{python} f"{share_above:.0%}"` of those `{python} f"{n_fires:,}"` days,
+knowing about the zero run made the model forecast **more** sales, not fewer. It is asserting
+*"a long zero run is likely here"* and *"I now expect higher sales here than I would have
+without that knowledge"* at the same time. The two channels are barely coupled, so the
+multivariate framing is not merely unhelpful: a third of the times it fires, it contradicts
+itself.
 
 ## Context length: the one knob that matters, swept 46 ways
 
@@ -293,27 +360,24 @@ plt.show()
 ```
 
 ```{python}
-#| label: tbl-sweep
-#| tbl-cap: "The winner per segment, and every length within 1% of it."
-#| code-fold: true
-rows = []
+#| echo: false
+plateaus = {}
 for name in ("days 01-07", "days 08-28"):
     part = sweep.filter(pl.col("segment") == name)
     best = part.sort("WQL").row(0, named=True)
-    plateau = part.filter(pl.col("WQL") <= best["WQL"] * 1.01)["context_length"].sort()
-    rows.append({"segment": name, "best context": best["context_length"],
-                 "WQL": round(best["WQL"], 6),
-                 "lengths within 1%": len(plateau),
-                 "shortest of those": int(plateau.min())})
-md(pl.DataFrame(rows), digits=6)
+    within = part.filter(pl.col("WQL") <= best["WQL"] * 1.01)["context_length"].sort()
+    plateaus[name] = {"best": best["context_length"], "within": len(within),
+                      "shortest": int(within.min())}
 ```
 
 The shape of that curve is the finding. Below roughly 150 days the model is badly starved and
-the error rises steeply; above a few hundred the curve is **flat to within a fraction of a
-percent**, and the chosen optimum sits on a plateau rather than at a point.
+the error rises steeply; above a few hundred it is **flat to within a fraction of a
+percent**. The best length is `{python} f"{plateaus['days 01-07']['best']:,}"` days for the
+first week and `{python} f"{plateaus['days 08-28']['best']:,}"` for days 8–28 — but neither
+is a point, it is a plateau: `{python} f"{plateaus['days 01-07']['within']}"` and
+`{python} f"{plateaus['days 08-28']['within']}"` lengths score within 1% of those winners.
 
-Three things convince me it really is a plateau. More than a dozen lengths fall within 1% of
-the winner in each segment. The same selection rule run on WMAPE instead of WQL picks 1,288
+Two more things say the same. The same selection rule run on WMAPE instead of WQL picks 1,288
 for the early segment rather than 1,099 — the same flat region, a different point in it. And
 a CPU run and a GPU run of the sweep disagreed on the coarse-grid winner, yet still selected
 the same final pair.
@@ -353,11 +417,52 @@ low-rank correction to the attention matrices and the output layer — a few hun
 trainable parameters, which is what makes the run affordable at all. I used rank 8, learning
 rate 1e-5, 1,000 steps, effective batch 32.
 
-The protocol keeps the fine-tune away from what it is scored on: training windows are cut at
-random from history up to *origin − 28 days*, the 28 days immediately before the origin are
-the validation target scored every 100 steps, the best checkpoint by that loss is kept, and
-the forecast window is never touched. The test-origin model is a fresh fine-tune with the
-same configuration on the longer history, exactly as the baseline was retrained per window.
+The protocol keeps the fine-tune away from what it is scored on:
+
+```{python}
+#| label: fig-lora-protocol
+#| fig-cap: "How one fine-tune is laid out around its forecast origin. The history band is drawn truncated; in practice it runs back to the start of the series. The best checkpoint by the validation loss is the one kept."
+#| code-fold: true
+SPAN = 200                                  # days of history drawn, for scale only
+window_starts = np.random.default_rng(0).integers(-SPAN, -56, size=6)
+
+fig, ax = plt.subplots(figsize=(11, 2.6))
+for start, end, colour in [(-SPAN, -28, plots.GRID_COLOR),
+                           (-28, 0, plots.MUTED_TEXT_COLOR),
+                           (0, 28, plots.MAIN_COLOR)]:
+    ax.barh(0, end - start, left=start, height=0.5, color=colour, zorder=2)
+
+for row, start in enumerate(window_starts):
+    ax.barh(0.72 + 0.17 * (row % 2), 28, left=start, height=0.13,
+            color=plots.TEXT_COLOR, alpha=0.55, zorder=3)
+ax.text(-SPAN, 1.12, "random 28-day training windows", fontsize=8,
+        color=plots.TEXT_COLOR, va="bottom")
+
+ax.axvline(0, color=plots.TEXT_COLOR, linewidth=1.2, linestyle="--", zorder=4)
+ax.text(0, 1.3, "forecast origin", ha="center", va="bottom", fontsize=9,
+        color=plots.TEXT_COLOR)
+for x, text, colour, align in [
+        (-SPAN / 2 - 14, "history\ntraining windows cut at random from here",
+         plots.TEXT_COLOR, "center"),
+        (-30, "−28 → 0\nvalidation target,\nscored every 100 steps",
+         plots.TEXT_COLOR, "right"),
+        (30, "0 → +28\nthe forecast window,\nnever touched",
+         plots.MAIN_COLOR, "left")]:
+    ax.text(x, -0.38, text, ha=align, va="top", fontsize=8.5, color=colour)
+
+ax.set_xlim(-SPAN - 6, 100)
+ax.set_ylim(-1.5, 1.6)
+ax.set_yticks([])
+ax.set_xticks([-150, -100, -50, -28, 0, 28])
+ax.set_xlabel("days relative to the forecast origin")
+for side in ("left", "right", "top"):
+    ax.spines[side].set_visible(False)
+fig.tight_layout()
+plt.show()
+```
+
+The test-origin model is a fresh fine-tune with the same configuration on the longer history,
+exactly as the baseline was retrained per window.
 
 Nothing forces a model to forecast at the context length it was tuned at, so I tried all four
 pairings.

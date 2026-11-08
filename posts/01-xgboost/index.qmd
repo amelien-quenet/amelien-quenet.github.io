@@ -93,16 +93,16 @@ separately**, and that the surviving list is frozen to disk. A roster that quiet
 between models turns every later comparison into a comparison of populations.
 
 ```{python}
-#| label: tbl-roster
-#| tbl-cap: "Scored series per window, from the frozen evaluation roster."
-#| code-fold: true
-md(EVAL_ROSTER.group_by("role").agg(pl.len().alias("scored pairs"),
-                                    pl.col("id").n_unique().alias("series")))
+#| echo: false
+scorable = dict(EVAL_ROSTER.group_by("role")
+                .agg(pl.col("id").n_unique().alias("series"))
+                .iter_rows())
 ```
 
-Of the 500 sampled series, 473 are scorable on the validation window and 485 on the test
-window. In both cases every exclusion is the no-sale condition: none of the 500 is short of
-history, and none has a missing day inside either window.
+Of the 500 sampled series, `{python} f"{scorable['validation']}"` are scorable on the
+validation window and `{python} f"{scorable['test']}"` on the test window. In both cases
+every exclusion is the no-sale condition: none of the 500 is short of history, and none has
+a missing day inside either window.
 
 ### Five metrics, and what each is for
 
