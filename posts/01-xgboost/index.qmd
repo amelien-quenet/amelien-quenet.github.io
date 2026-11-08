@@ -4,7 +4,7 @@ description: "Reproducing a top-4% M5 gradient-boosting solution, and building t
 order: 1
 date: "2026-11-01"
 categories: [M5, XGBoost, evaluation]
-draft: true
+draft: false
 ---
 
 ```{python}
@@ -16,24 +16,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 ```
 
-Before comparing a foundation model to anything, there has to be something to compare it
-to, and a way of comparing that cannot quietly flatter either side. This post builds both:
-the measuring harness, and a feature-engineered gradient-boosting model reproduced from a
-public top-4% M5 solution.
+A foundation model is only impressive against something. So I began by building the reference
+it would have to beat: a feature-engineered gradient-boosting model, in the tradition that
+won M5, inspired by a public top-4% solution.
 
-The result worth stating up front is how little the 52 engineered features buy over a
-28-day mean. That is not a criticism of the solution — it is what makes the comparison in
-[the next post](../02-chronos2/) informative.
+The result worth stating up front is how little those 52 engineered features buy over the
+mean of the last 28 days. That is not a criticism of the solution I reproduced — I reduced it
+to a single XGBoost model where the original used LightGBM — but it is what makes the
+comparison in [the next post](../02-chronos2/) far more interesting.
 
-## What a zero means
+## The dataset
 
 One target value per series per day: units of one item sold in one Walmart store. History
-runs 2011-01-29 to 2016-05-22, 1,941 days, 30,490 series. All the work here is on a frozen
-random sample of 500, drawn once and saved, so every notebook studies the same items.
+runs 2011-01-29 to 2016-05-22, 1,941 days, 30,490 series. I work throughout on a frozen
+random sample of 500 series, drawn once and saved, so every number in these three posts comes
+from the same items. The sample is for tractability, nothing more.
 
 ```{python}
 #| label: fig-intermittency
-#| fig-cap: "Left: share of on-sale days with no sale, one count per series. Right: mean units sold per day, log scale, by product category. The population this study forecasts is mostly near zero."
+#| fig-cap: "Left: share of on-sale days with no sale, one count per series. Right: mean units sold per day, log scale, by product category. The population I forecast is mostly near zero."
 #| code-fold: true
 on_sale = SALES.filter(~pl.col("is_missing"))
 per_series = on_sale.group_by("id", "cat_id").agg(
@@ -68,27 +69,27 @@ before an item's first price in `sell_prices.csv`, when it was not on the shelf 
 Those are dropped from every history. Everything else is a real zero — the item was
 available and nobody bought it — and it is part of what the forecast has to get right.
 
-Second, **the metric cannot be a percentage error.** Dividing by an actual of zero is
-undefined, and most actuals are zero.
+Second, **the evaluation metric over a period of zero sales cannot be a percentage error.**
+Dividing by an actual of zero is undefined, and most actuals are zero.
 
 ## The harness comes first
 
-Two forecast origins, fixed before any model ran:
+I set two forecast origins:
 
 ```{python}
 #| label: tbl-windows
-#| tbl-cap: "The two windows. Every choice in this study is made on the validation window; the test window is read once, at the end of the next post."
+#| tbl-cap: "The two windows. Every choice I make is made on the validation window; I read the test window once, at the end of the next post."
 #| echo: false
 md(WINDOWS)
 ```
 
-A (series, window) pair is scored only if it clears three conditions: at least 56 days on
-sale before the origin, no missing day inside the window, and at least one unit sold in the
-window. The third is not cosmetic — WMAPE and WQL divide by the window's total, so a series
-that sells nothing has no defined error.
+A (series, window) pair is scored only if it clears three conditions: at least 56 days
+(arbitrary, but reasonable) on sale before the origin, no missing day inside the window, and
+at least one unit sold in the window. The third is necessary — WMAPE and WQL divide by the
+window's total, so a series that sells nothing has no defined error.
 
-What matters more than the conditions is that **the count removed by each one is reported
-separately**, and that the surviving list is frozen to disk. A roster that silently changes
+What matters more than the conditions is that **I report the count each one removes
+separately**, and that the surviving list is frozen to disk. A roster that quietly changes
 between models turns every later comparison into a comparison of populations.
 
 ```{python}
@@ -111,23 +112,28 @@ history, and none has a missing day inside either window.
 | WMAPE | $100 \cdot \sum \lvert y - \hat y\rvert / \sum y$ | scale-free, survives zeros: the headline |
 | P90 | 90th percentile of $\lvert y - \hat y\rvert$ | the bad days |
 | WQL | mean over $q \in \{0.1,\dots,0.9\}$ of $2 \sum L_q / \sum y$ | the whole forecast distribution |
-| RQL | $100 \cdot \sum L_{0.2} / \sum y$ | over-prediction priced at four times under-prediction |
+| RQL | $100 \cdot \sum L_{0.2}(y, \hat y) / \sum y$ | the point forecast, with over-prediction priced at four times under-prediction |
 
-$L_q$ is the quantile loss: $q\,(y - \hat y_q)$ when the forecast is too low,
-$(1-q)(\hat y_q - y)$ when it is too high. All sums run over scored (series, day) pairs,
-never averaged per series and then averaged again.
+$L_q$ is the quantile loss on a forecast $f$: $q\,(y - f)$ when $f$ is too low,
+$(1-q)(f - y)$ when it is too high. WQL applies it to each quantile forecast $\hat y_q$ in
+turn, which is where it is a proper scoring rule — minimised by reporting the true quantile.
+RQL applies $L_{0.2}$ to the point forecast $\hat y$ instead, because the asymmetry is meant
+to price the cost of acting on the number the model puts forward. Scoring it on the 0.2
+quantile column would reward a model for submitting a deliberately low number: on this data
+that is worth a factor of about 2.8 at identical forecasting skill. All sums run over scored
+(series, day) pairs, never averaged per series and then averaged again.
 
 One identity decides how the next post must be read: **for a model that only gives a point
 forecast, every quantile column is a copy of it, and WQL collapses to WMAPE/100.** A
 probabilistic model can beat that number only by saying something true about its own
 uncertainty. So WQL is not a fair axis for comparing a point model with a distributional
-one; MAE, WMAPE and P90 are.
+one; MAE, WMAPE, P90 and RQL are.
 
-The metric code is checked against three cases whose answers are known in advance: a perfect
+I check the metric code against three cases whose answers are known in advance: a perfect
 forecast scores 0 everywhere; a constant zero forecast scores WMAPE 100, WQL 1 and RQL 20;
 and a point forecast's WQL equals its WMAPE/100.
 
-## Three naive baselines, which are not a formality
+## Three naive baselines
 
 Always zero, repeat-last-week, and the mean of the last 28 days. On intermittent data the
 first is not absurd, and the third is a genuinely strong competitor — which is exactly why
@@ -147,12 +153,11 @@ while a flat 28-day mean removes about a fifth of the error. On series this spar
 weekly pattern of a single item is mostly noise, and averaging it away beats reproducing it.
 
 RQL inverts the ranking — the zero forecast wins it outright, 20 against 39. That is the
-metric doing its job rather than a paradox: RQL prices over-prediction at four times
-under-prediction, and a forecast of zero can never over-predict.
+metric doing its job, showing how low volume the real values mostly are.
 
 ## The features
 
-Rather than invent a feature set, this reproduces one that is public and placed well:
+Rather than invent a feature set, I reproduced one that is public and placed well:
 [btrotta/kaggle-m5](https://github.com/btrotta/kaggle-m5) (`predict.py`), a top-4% M5
 solution. Fifty-two features in four families:
 
@@ -168,16 +173,18 @@ The strategy is **direct**: 28 models, one per forecast day. The model for day *
 sales only up to the origin, with its lag features shifted *k* days further back, so no
 forecast is ever fed back as an input and nothing in the window leaks.
 
-Five differences from the original are deliberate, and two of them handicap this
-reproduction: XGBoost instead of LightGBM with the closest equivalent settings; **training
-on the 500-series sample** rather than all 30,490 (the department and item features are
-still computed on all of them); boosting rounds chosen by early stopping on the last 28 days
-*before* the origin, where the original stops on the window it then reports; the event
-uplift implemented as intended rather than as coded; and missing days defined by the price
-file.
+Five differences from the original are deliberate:
 
-The second and third of those cost real accuracy. A reproduction that scored *better* than
-the original would be the suspicious outcome.
+- XGBoost instead of LightGBM, with the closest equivalent settings;
+- **training on the 500-series sample** rather than all 30,490 — though the department and
+  item features are still computed on all of them;
+- boosting rounds chosen by early stopping on the last 28 days *before* the origin, where
+  the original stops on the window it then reports;
+- the event uplift implemented as intended rather than as coded;
+- missing days defined by the price file.
+
+The second and third cost real accuracy, and I kept them anyway: a reproduction that scored
+*better* than the original would be the suspicious outcome.
 
 ## What it buys
 
@@ -203,9 +210,9 @@ plt.show()
 
 Fifty-two features, 28 trained models and roughly 84 minutes of CPU at the test origin,
 against a flat mean of the last 28 days: **0.8 WMAPE points on validation, 1.2 on test.**
-The horizon view says where that comes from — the two are nearly tied over the first
-fortnight, then the mean decays while the model does not, which is the one thing a model
-with a calendar in it ought to manage.
+The horizon view says where that comes from — the two are nearly tied over the second
+week, then the mean decays while the model does not, which is the one thing a model
+with a calendar in it ought to manage. The first week is to the model's advantage too.
 
 The per-series view is blunter still.
 
@@ -232,7 +239,7 @@ plt.show()
 XGBoost has the lower WQL on `{python} f"{share:.0%}"` of series. It loses on the majority
 of items and still wins overall, because the items it wins on are the ones that sell. Pooled
 metrics weight by volume; a per-series count does not. Both numbers are true, and quoting
-only the pooled one would be the kind of claim this harness exists to prevent.
+only the pooled one is exactly the kind of claim I built this harness to catch.
 
 ## What the baseline settles
 
@@ -247,5 +254,5 @@ WMAPE and P90. Its WQL is arithmetic, not a measurement.
 **A caveat that cuts the other way.** XGBoost is trained on squared error, so it estimates a
 conditional mean. On absolute-error metrics the optimal point forecast is the *median*, so
 any model that returns a median starts with a structural advantage on MAE and WMAPE that has
-nothing to do with forecasting better. Chronos-2 returns a median. That has to be said
-before the comparison, not after it.
+nothing to do with forecasting better. Chronos-2 returns a median, so in case of a tight
+match strong conclusions could be risky.

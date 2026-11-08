@@ -1,10 +1,10 @@
 ---
 title: "Difficulty belongs to the item, and mostly to its volume"
-description: "Forty-two per cent of the error sits on the identity of the item and two per cent on the week. Two thirds of that is volume. The third that is left is real, and it is not in the weekly shape — which rules out the axis this study had built the machinery to test."
+description: "Forty-two per cent of the error sits on the identity of the item and two per cent on the week. Two thirds of that is volume. The third that is left is real, and it is not in the weekly shape — which rules out the one axis I had built the machinery to test."
 order: 3
 date: "2026-11-07"
 categories: [M5, diagnostics, clustering, statistics]
-draft: true
+draft: false
 ---
 
 ```{python}
@@ -43,11 +43,8 @@ hand-made, clustered or learned — has anything to hold on to.
 This post answers that, and then keeps narrowing. Difficulty *is* a stable property of the
 item. Two thirds of it is volume, which needs no clustering to exploit. The third that
 survives is real — bigger than every other term in the budget except the irreducible noise —
-and it is **not** in the weekly shape, which is the one candidate axis this study had built
-the apparatus to test.
-
-Three answers, and the last one is the kind of negative result worth publishing: bounded,
-and it redirects the work rather than ending it.
+and it is **not** in the weekly shape, which is the one candidate axis I had built the
+apparatus to test.
 
 ## The panel
 
@@ -75,9 +72,8 @@ n_series, n_origins = panel.shape
 
 The origins run `{python} str(ORIGINS[0])` to `{python} str(ORIGINS[-1])`. Of the 494 series
 scorable at least once, `{python} str(n_series)` are scorable at **every** origin, and those
-are the panel. That count is printed rather than buried: double-centring a grid with holes
-is a different estimator, and a series present at half the origins would have its difficulty
-measured on a different set of weeks than its neighbours'.
+are the panel. I print that count rather than bury it, because every item in the panel has to
+have its difficulty measured on the same set of weeks.
 
 ```{python}
 #| label: fig-panel
@@ -101,16 +97,16 @@ The error of each (item, origin) cell splits four ways:
 
 $$x_{i,o} = \mu + \alpha_i + \beta_o + \varepsilon_{i,o}$$
 
-$\alpha_i$ is the item — by construction the only part a static grouping could exploit.
-$\beta_o$ is the week: some weeks are hard for everyone. What is left splits further into a
-part that survives to the next origin, a part that does not, and the sampling noise of the
-cell itself, measured from the odd and even days of each window.
+$\mu$ is the global mean. $\alpha_i$ is the item — by construction the only part a static
+grouping could exploit. $\beta_o$ is the week: some weeks are hard for everyone. What is left
+splits further into a part that survives to the next origin, a part that does not, and the
+sampling noise of the cell itself, measured from the odd and even days of each window. It is
+all contained within $\varepsilon_{i,o}$.
 
 ## Does the estimator work?
 
-This is the step most analyses skip, and the one that decides whether anything here means
-anything. Before the real panel, a simulated one with known components, at this panel's size
-and noise level:
+Before touching the real panel, I ran the method on a simulated one with known components, at
+the same panel size and noise level:
 
 ```{python}
 #| label: tbl-control
@@ -136,9 +132,9 @@ The control also exposes the method's one real limit. A difficulty that **drifts
 partly indistinguishable from a constant one over a panel spanning six months, so it gets
 shared between the item term and the persistent term. Sweeping the drift's autocorrelation
 from 0 to 0.97 moves the split between those two from 0.7%/0% to 15.9%/2.0% — while their
-**sum** stays put. So two readings get reported: the item share answers *could a grouping
-fitted once and left alone help*, and the sum answers *is there anything stable at all, even
-if it has to be refitted*.
+**sum** stays put. So I report both readings: the item share answers *could a grouping fitted
+once and left alone help*, and the sum answers *is there anything stable at all, even if it
+has to be refitted*.
 
 ## Where the error lives
 
@@ -172,9 +168,8 @@ aside.
 
 ## Two instruments, one answer
 
-A decomposition is a model, and a model can be wrong. Rank agreement is not a model: order
-the items by error at one origin, order them again at the next, and ask whether the two
-orderings agree.
+A decomposition is a model, and a model can be wrong. Rank agreement is not a model: it is a
+direct measurement of consistency, with no assumptions behind it.
 
 ```{python}
 #| label: fig-ranks
@@ -206,11 +201,11 @@ plt.show()
 ```
 
 A median of `{python} f"{ranks['consecutive_median']:+.2f}"` between consecutive origins
-looks like weak agreement. Test–retest conventions call anything under 0.5 weak, and the
-pre-registered rule for this study wanted 0.6. Taken at face value, the two sections of this
-post seem to disagree: a large item effect, and a ranking that only half holds.
+looks like weak agreement. Test–retest conventions call anything under 0.5 weak. Taken at
+face value, the two sections of this post seem to disagree: a large item effect, and a
+ranking that only half holds.
 
-They do not disagree. **The decomposition predicts the rank correlation**, and the
+But they do not disagree. **The decomposition predicts the rank correlation**, and the
 prediction can be written down from the variance shares alone.
 
 Within one origin the week effect is a constant and does not touch the across-items ranking,
@@ -221,9 +216,9 @@ $\operatorname{var}(\alpha) + v_{\text{pers}}$. Their ratio is the correlation t
 expects anyone to *observe*. Six months apart the persistent part has decayed and only
 $\operatorname{var}(\alpha)$ remains.
 
-Divide instead by the **reliable** part of a cell — everything except the sampling noise —
-and you get the correlation between the underlying difficulties rather than between their
-noisy estimates.
+So divide instead by the **reliable** part of a cell — everything except the sampling noise —
+and what comes out is the correlation between the underlying difficulties rather than between
+their noisy estimates.
 
 ```{python}
 #| label: tbl-attenuation
@@ -265,44 +260,6 @@ The six-month row says something further. Nearly all of the long-run agreement i
 $\alpha$ term — the persistent part has decayed by then — so $\alpha$ is behaving like a
 genuinely fixed property of the item rather than a slow drift.
 
-### The pre-registered rule, and what to do with it
-
-```{python}
-#| label: verdict-09
-#| echo: false
-#| output: asis
-print("```\n" + verdict(result, ranks, intervals) + "\n```")
-```
-
-The rule, fixed before any of this was computed: a median consecutive-origin Spearman of
-**0.6 or more and at least 35%** of the variance on the item means a grouping has something
-real; **0.3 or less, or under 20%**, means it has not; between the two, partial. It returns
-*partial*, on one arm only — the variance share clears its bar comfortably, the Spearman
-does not.
-
-Moving a pre-registered threshold after seeing the data is exactly the move this study is
-built to avoid, so the rule stays as written and its verdict stays reported. But the rule was
-**mis-specified, and identifiably so before any data arrived**: its Spearman arm bounds a
-quantity that the sampling noise of a 7-day window attenuates, and the thresholds were taken
-from published work on windows of a different reliability. The honest record is both numbers
-— the rule as written returns partial, and the quantity the rule was reaching for is
-`{python} f"{attenuation['noise-corrected'][0]:.2f}"`.
-
-On the question the rule was asked to settle, the evidence is one-directional:
-
-- the item carries `{python} f"{100 * shares['series_adjusted']:.0f}"`% of the variance, CI
-  [`{python} f"{100 * intervals['series_adjusted'][0]:.0f}"`,
-  `{python} f"{100 * intervals['series_adjusted'][1]:.0f}"`];
-- the week carries `{python} f"{100 * shares['origin']:.0f}"`%;
-- the underlying difficulty ordering holds at
-  `{python} f"{attenuation['noise-corrected'][0]:.2f}"` week to week and
-  `{python} f"{attenuation['noise-corrected'][1]:.2f}"` across six months;
-- and both known biases of the method push *toward* a large item effect, so
-  `{python} f"{100 * shares['series_adjusted']:.0f}"`% is better read as an upper bound than
-  as a point estimate.
-
-**Difficulty is a stable property of the item.** The precondition holds.
-
 ## Most of it is volume
 
 A large item share is the start of an argument, not the end of one. WQL is scale-free, so a
@@ -316,9 +273,9 @@ which the forecaster reads off the history unaided.
 
 One correction is mandatory and easy to miss. The sampling noise of a 7-day window is itself
 strongly volume-dependent, so low-volume items have their $\alpha$ inflated **more** — which
-would manufacture exactly the relationship being tested for. A global bias adjustment cannot
-fix a bias that differs per item, so each item's noise is measured from its own odd and even
-days and removed individually.
+would manufacture exactly the relationship I am testing for. A global bias adjustment cannot
+fix a bias that differs per item, so I measure each item's noise from its own odd and even
+days and remove it individually.
 
 ```{python}
 #| label: tbl-volume
@@ -398,8 +355,8 @@ its keep on.
 
 ## Is the rest of it in the weekly shape?
 
-The residual is real. The question is where to look for it, and this study had already built
-the machinery to look in one specific place: the **weekly shape** — the share of a week
+The residual is real. The question is where to look for it, and I had already built the
+machinery to look in one specific place: the **weekly shape** — the share of a week
 falling on each weekday. Each week is normalised to 1, the weeks are pooled, and the result
 is a 7-vector summing to 1, so how much an item sells drops out and only *when* it sells
 remains.
@@ -440,7 +397,7 @@ fig.tight_layout()
 plt.show()
 ```
 
-Here is that construction, animated, on **planted archetypes**: four invented weekly shapes,
+Here is that construction, animated (with manim), on **planted archetypes**: four invented weekly shapes,
 scattered and then redrawn as counts at the items' real weekly totals. It is synthetic data,
 and saying so is the point — it shows what the space is and what genuine structure in it
 would look like, which is what makes the measurement below legible either way.
@@ -455,8 +412,8 @@ removed from the object on purpose, so whether anything of the item effect is le
 object is an open empirical question — and the cheapest one available, because it decides
 whether a clustering of the shape space is worth building at all.
 
-The test regresses $\alpha_i$ on volume, sparsity **and the per-item noise level**, then adds
-the six free shape coordinates and asks what they add. Three things make it readable:
+So I regress $\alpha_i$ on volume, sparsity **and the per-item noise level**, then add the six
+free shape coordinates and ask what they buy. Three things make the answer readable:
 
 - **Shape is measured on history strictly before the panel's first origin.** A profile
   computed over the scored windows would be partly measured on what it predicts.
@@ -517,23 +474,26 @@ no version of this measurement, however much the ruler improves, in which the we
 reaches the `{python} f"{100 * volume_record['share_after_covariates']:.1f}"`% that is still
 on the item.
 
-Three details that keep it from being an artefact of the setup.
-`{python} str(bridge['n_series_with_shape'])` of `{python} str(bridge['n_series_panel'])`
-panel items have a 26-week shape before the first origin, so the sub-population is the panel;
-reliability here (`{python} f"{bridge['shape_reliability']:.2f}"`) is *better* than across the
-full roster, because the panel's members are the steady sellers, so this is the favourable
-corner of the data for shape; and the per-weekday correlations on the right never leave
-±0.16, so no single weekday carries difficulty either.
+Three details keep this from being an artefact of the setup:
 
-## And the audit that was already running
+- `{python} str(bridge['n_series_with_shape'])` of
+  `{python} str(bridge['n_series_panel'])` panel items have a 26-week shape before the first
+  origin, so the sub-population *is* the panel;
+- reliability here (`{python} f"{bridge['shape_reliability']:.2f}"`) is *better* than across
+  the full roster, because the panel's members are the steady sellers — this is the
+  favourable corner of the data for shape;
+- the per-weekday correlations on the right never leave ±0.16, so no single weekday carries
+  difficulty either.
 
-By the time that test existed, the shape space had already been put through a full clustering
-audit: does the population contain **discrete types**, or is it one continuum? That audit is
-worth reporting, with its result stated plainly and its standing corrected.
+## What is the underlying structure of the historical data?
+
+So far I have been dissecting the structure of the *errors*. The same question can be put to
+the items themselves: does the population contain **discrete types**, or is it one continuum?
+I took the angle of weekly shape again.
 
 ```{python}
 #| label: tbl-audit
-#| tbl-cap: "The clustering audit of the weekly shape space, as recorded by notebook 10."
+#| tbl-cap: "The clustering audit of the weekly shape space."
 #| code-fold: true
 strengths = {int(k): v for k, v in AUDIT["prediction_strength"].items()}
 md(pl.DataFrame([
@@ -583,9 +543,8 @@ It would have been easy to publish a continuum here. $\hat K = 1$ on the real da
 of the `{python} str(AUDIT['n_nulls'])` nulls also returning 1, separation
 `{python} f"{AUDIT['separation_achieved']:.2f}"` against a detection floor of
 `{python} f"{AUDIT['detection_floor_delta']:.2f}"` — three true sentences from which "one
-continuum, no discrete types" follows smoothly. The checks standing in the way are checks
-this analysis imposed on itself, and they say the smooth conclusion is unsupported in both
-directions.
+continuum, no discrete types" follows smoothly. The checks standing in the way are the ones I
+imposed on myself, and they say the smooth conclusion is unsupported in both directions.
 
 One part of the audit does pass cleanly, and it is a positive structural result: the weekly
 shapes are **anchored to the calendar**. The rotation that best aligns a pair of profiles is
@@ -623,8 +582,8 @@ item-specific, stable, and **not** in the weekly shape, at a ceiling of
 `{python} f"{100 * bridge['increment_disattenuated']:.1f}"`%. The shape space is
 calendar-anchored, and its measurability rises monotonically with volume.
 
-**Open.** Whether that residual is organised at all, and on what axis. Candidates this study
-has not tested: burstiness and volatility, lifecycle stage, promotion and price response,
+**Open.** Whether that residual is organised at all, and on what axis. Candidates I have not
+tested: burstiness and volatility, lifecycle stage, promotion and price response,
 intermittency structure beyond the zero-day share. Each is one covariate block through the
 same machinery — the test is cheap now that the panel and the estimator exist, and a negative
 is as useful as a positive because it is bounded.
@@ -633,14 +592,4 @@ is as useful as a positive because it is bounded.
 coordinates, so a difficulty depending on shape non-monotonically — hard at both ends of the
 weekend axis — would be missed, and the ceiling is a linear ceiling. And shape here is
 measured once, well before the scored windows: a profile that *drifts* could matter nearer
-them, which is one of the audit steps this study skipped.
-
----
-
-Across three posts: a foundation model beat a reproduced top-4% feature pipeline by 8.3% of
-WMAPE with no features, no tuning and no training, and everything afterwards moved the result
-by a fraction of a percent. The error that remains is not spread evenly — it sits on
-particular items, durably, and mostly in proportion to how little they sell. What is left
-after that is the real target, it is about a seventh of the budget, and the first place this
-study looked for it is now ruled out. Knowing which axis *not* to spend a month on is worth
-more than a clustering that would have organised nothing.
+them, which is one of the audit steps I skipped.

@@ -4,7 +4,7 @@ description: "Zero-shot, the model beats a 52-feature baseline by 8% out of the 
 order: 2
 date: "2026-11-01"
 categories: [M5, Chronos-2, foundation models, fine-tuning]
-draft: true
+draft: false
 ---
 
 ```{python}
@@ -27,9 +27,9 @@ def on_validation(predictions):
     return metrics.join_truth(predictions, TRUTH, VAL_ROSTER)
 ```
 
-[The previous post](../01-xgboost/) left a number to beat: WMAPE 78.8 on the validation
-window, from 52 hand-built features and 28 trained models. This post hands Chronos-2 the
-sales history and nothing else.
+[The previous post](../01-xgboost/) left me a number to beat: WMAPE 78.8 on the validation
+window, from 52 hand-built features and 28 trained models. Here I hand Chronos-2 the sales
+history and nothing else.
 
 ## What the model is
 
@@ -39,8 +39,13 @@ the history into patches of 16 days, embeds each as a vector, and emits the quan
 and the horizon length is an input rather than a trained-in constant. Its point forecast is
 the median.
 
-M5 was chosen partly because Chronos-2 has no training leakage on it, so a zero-shot number
-means something here.
+The original project behind Chronos-2, at Amazon, was to use an LLM to predict inside the
+"language" of time series. But building a vocabulary for real numbers turned out to be
+inefficient, which led the team to strip both the first and the last layer of the
+architecture and keep only the matrix algebra in between.
+
+I chose M5 partly because Chronos-2 has no training leakage on it, so a zero-shot number is
+an authentic statement.
 
 Out of the box means: no covariates, no fine-tuning, cross-learning off, default context
 length. One detail about that default matters more than it looks. The model reads the last
@@ -50,17 +55,16 @@ the documented 2,048 default and far shorter than the 8,192 maximum, so every se
 in full. On a finer-grained grid the same 8,192 steps would be a much shorter span and the
 default would be quietly truncating most of the history.
 
-## Four checks before any number is trusted
+## Four prior checks made
 
 Each of these can fail silently, and each would invalidate everything downstream:
 
 1. **Batching is not sharing.** With cross-learning off, a series forecast alone and the
-   same series inside a batch of 100 must give the same answer. Largest observed
-   difference: 3·10⁻⁷ units.
+   same series inside a batch of 100 must give the same answer.
 2. **The point forecast is the median.** The library names the column `predictions` and
-   computes it in a variable called `mean`. Largest observed $\lvert \hat y - q_{0.5}\rvert$: exactly 0.
+   computes it in a variable misleadingly called `mean`.
 3. **The context length changes nothing yet.** Forecasting at the 2,048 default must equal
-   forecasting at the model maximum, since no history is that long. Difference: exactly 0.
+   forecasting at the model maximum, since no history is that long.
 4. **Quantiles ordered, no missing values.** No missing values — but **19.1% of rows have at
    least one crossing quantile pair.** That is the model's own output, not a bug in the
    harness, and it is worth knowing before reading any interval as an interval.
@@ -86,9 +90,11 @@ fig, axes = plots.plot_by_bucket(table_of(models, "validation", by="horizon_buck
 plt.show()
 ```
 
-**MAE and WMAPE drop by 10.3% against XGBoost, with no features at all.** The engineering
-that the gradient-boosted baseline needs — lags, rolling windows, per-weekday moments at
-three aggregation levels — the foundation model extracts from the raw history by reading it.
+**MAE and WMAPE drop by 10.3% against XGBoost, with no features at all.** The engineering the
+gradient-boosted baseline needs — lags, rolling windows, per-weekday moments at three
+aggregation levels — is handmade, and therefore crude: reality does not line up with it that
+neatly. Chronos-2 works from a far richer representation, and it was never shown this kind of
+series while it was being built. That is the part I find impressive.
 
 Two honest deductions from that headline. Part of the 10.3% is the median-versus-mean
 advantage named at the end of the previous post: XGBoost is trained on squared error and
@@ -120,15 +126,17 @@ plt.show()
 Chronos-2 has the lower WMAPE on `{python} f"{share:.0%}"` of series — unlike the baseline's
 win in the previous post, this one is not carried by the high-volume items alone.
 
-## Four reasonable ideas that made it worse
+## Four reasonable but inadequate ideas
 
 Every gain of the gradient-boosted baseline came from handing it information. Chronos-2
 accepts extra inputs too, so the obvious next move is to hand it the same knowledge. The
-question is not rhetorical: anything derived from the timestamp or the target's own past
-*should* be redundant to a model that reads the history, but prices, SNAP days and events
-are genuinely exogenous and cannot be inferred from sales alone.
+question is not rhetorical. Anything derived from the target's own past *should* be redundant
+to a model that reads the history. But prices, SNAP days and events are genuinely exogenous
+and cannot be inferred from sales alone — and neither can the calendar, since Chronos-2 reads
+only the target values and so has no way of knowing whether a given day is Christmas or just
+another Monday.
 
-Four families were tried, all on the validation window, all against zero-shot:
+I tried four families, all on the validation window, all against zero-shot:
 
 ```{python}
 #| label: tbl-attempts
@@ -198,13 +206,19 @@ them out: a past-only 0/1 covariate, a second multivariate target, and replacing
 with NaN so the model treats them as unobserved. The first two land at −0.08% WMAPE and
 +0.10% WQL; masking is the worst result in the study at +2.32% WMAPE and +1.99% WQL.
 
-One trap had to be closed before any of that could be measured: the saved flags were
-computed on the whole dataset, so a zero run that straddles the origin was partly defined by
-days the model must not see. Recomputed on history alone, 307 history days change flag.
+One trap I had to close before any of that could be measured: the saved flags were computed
+on the whole dataset, so a zero run straddling the origin was partly defined by days the
+model must not see.
 
-### The diagnostic that inverted
+If there is a single **takeaway** from these eight runs, it is that with a foundation model
+**feature engineering harms predictive power**: it brute-forces a crude characterisation onto
+far subtler machinery. That is the opposite of an algorithm like XGBoost, where **the more the
+better**, because it simply never uses poor metadata — gain optimisation being the greedy
+backbone of its decision trees.
 
-Every run also reports the mean width of its 20–80% band, on the theory that *an input the
+### What about uncertainty?
+
+I also recorded the mean width of every run's 20–80% band, on the theory that *an input the
 model cannot turn into a rule makes it less sure before it makes it worse*. A widening would
 be the signature of a useless input.
 
@@ -240,10 +254,10 @@ next few days, while the far horizon may need more of the past. And because the 
 and the near horizon may want different answers, the sweep is scored **by horizon segment**,
 not overall.
 
-The decision rule was fixed before looking: for days 1–7 and for days 8–28 separately, keep
-the context with the lowest WQL. If the two differ, *stitch* — days 1–7 from one, days 8–28
-from the other — with the boundary at the edge of the first horizon bucket rather than at a
-tuned value.
+I fixed the decision rule before looking: for days 1–7 and for days 8–28 separately, keep the
+context with the lowest WQL. If the two differ, *stitch* — days 1–7 from one, days 8–28 from
+the other — with the boundary at the edge of the first horizon bucket rather than at a tuned
+value.
 
 ```{python}
 #| label: fig-sweep
@@ -294,14 +308,15 @@ for name in ("days 01-07", "days 08-28"):
 md(pl.DataFrame(rows), digits=6)
 ```
 
-The shape of that curve is the finding. Below roughly 150 days the model is badly starved
-and the error rises steeply; above a few hundred the curve is **flat to within a fraction of
-a percent**, and the chosen optimum sits on a plateau rather than at a point. Two
-confirmations that it really is a plateau: more than a dozen lengths fall within 1% of the
-winner in each segment, and the same selection rule run with WMAPE instead of WQL picks
-1,288 for the early segment rather than 1,099 — the same flat region, a different point in
-it. A CPU run and a GPU run of this sweep disagreed on the coarse-grid winner and still
-selected the same final pair.
+The shape of that curve is the finding. Below roughly 150 days the model is badly starved and
+the error rises steeply; above a few hundred the curve is **flat to within a fraction of a
+percent**, and the chosen optimum sits on a plateau rather than at a point.
+
+Three things convince me it really is a plateau. More than a dozen lengths fall within 1% of
+the winner in each segment. The same selection rule run on WMAPE instead of WQL picks 1,288
+for the early segment rather than 1,099 — the same flat region, a different point in it. And
+a CPU run and a GPU run of the sweep disagreed on the coarse-grid winner, yet still selected
+the same final pair.
 
 ```{python}
 #| label: tbl-stitch
@@ -326,14 +341,17 @@ md(metrics.compare({k: on_validation(v) for k, v in candidates.items()},
 So: a 46-length sweep, a selection rule fixed in advance, a stitch across two regimes — and
 the whole exercise removes **0.11% of WMAPE and 0.08% of WQL.** Reading the entire history,
 which is what the model does if you tell it nothing, is within a tenth of a percent of the
-best configuration available.
+best configuration available. Remember, though, that in this setting no series was longer
+than 2,000 days, which is far from the maximum capacity of Chronos-2: on a different model,
+or with more history, the relationship between performance and context length could be
+**non-monotonic**.
 
-## LoRA, aimed at the long horizon
+## LoRA for finetuning
 
-Full fine-tuning would update 120M weights. LoRA freezes them and learns a rank-8 correction
-to the attention matrices and the output layer — a few hundred thousand trainable parameters,
-which is what makes the run affordable at all. Rank 8, learning rate 1e-5, 1,000 steps,
-effective batch 32.
+Full fine-tuning would update 120M weights. LoRA (for low rank) freezes them and learns a
+low-rank correction to the attention matrices and the output layer — a few hundred thousand
+trainable parameters, which is what makes the run affordable at all. I used rank 8, learning
+rate 1e-5, 1,000 steps, effective batch 32.
 
 The protocol keeps the fine-tune away from what it is scored on: training windows are cut at
 random from history up to *origin − 28 days*, the 28 days immediately before the origin are
@@ -341,8 +359,8 @@ the validation target scored every 100 steps, the best checkpoint by that loss i
 the forecast window is never touched. The test-origin model is a fresh fine-tune with the
 same configuration on the longer history, exactly as the baseline was retrained per window.
 
-Since nothing forces a model to forecast at the context length it was tuned at, all four
-pairings were tried.
+Nothing forces a model to forecast at the context length it was tuned at, so I tried all four
+pairings.
 
 ```{python}
 #| label: tbl-lora
@@ -372,15 +390,15 @@ tuned at one length, predicting at another — which training and predicting at 
 would never have surfaced. It is also the kind of result that is easy to over-read: the gap
 between it and the next configuration is in the fourth decimal of WQL.
 
-The cost is worth recording. On the laptop CPU this measured 21.7 s per training step and
-126 s per evaluation pass: 6.4 hours per fine-tune, up to 25.5 hours for the plan. The same
-work on a GTX 1080 took about 32 minutes per run. Every number in this section that is
-compared with another was produced on the same device, because CPU and GPU disagree in the
+The cost is worth recording. On my laptop CPU this measured 21.7 s per training step and
+126 s per evaluation pass: 6.4 hours per fine-tune, up to 25.5 hours for the whole plan. The
+same work on a GTX 1080 took about 32 minutes per run. Every number in this section that I
+compare with another was produced on the same device, because CPU and GPU disagree in the
 third decimal of WQL — enough to invert a ranking this tight.
 
 ## The one measurement on the test window
 
-The test window was used for no decision anywhere in this post.
+I used the test window for no decision anywhere in this post.
 
 ```{python}
 #| label: tbl-final
@@ -446,14 +464,14 @@ Out of the box, on data it had never seen, Chronos-2 beat a reproduced top-4% fe
 pipeline by 8.3% of WMAPE. Then: four families of extra information, a 46-length sweep of its
 most important setting, a stitch across horizon segments and a LoRA fine-tune — and the
 combined effect of all of it is **a fraction of a percent, in the wrong direction on the
-point forecast.**
+point forecast.** These results really highlight the power of the model's architecture — it
+isn't even a heavy-duty product with its 120M parameters, compared to GPT-3's **175B
+parameters**: and that was in 2020!
 
-The flat part of that story is not a failure of effort; it is a measurement. Every
-configuration tried lands in the same narrow band, which is what a ceiling looks like from
-the inside. The honest next question is not "which knob was missed" but **"is this a limit of
-the tuning, or of the problem?"** — and that is answerable, which is what [the third
-post](../03-ceiling/) does.
-
-One lever is left untried here, and it is the one worth testing properly: **treat different
-series differently** — fine-tune per group, cross-learn inside a group, one model per group.
-That has a precondition which can be tested before any of it is built.
+The flat part of that story is not a failure of effort. Every configuration I tried lands in
+the same narrow band, which is what a ceiling looks like from the inside. The honest next
+question is not "which knob did I miss" but **"is this a limit of the tuning, or of the
+problem?"** — and that one is answerable, which is what [the third post](../03-ceiling/) does.
+It also weighs the one lever I never pulled: **treat different series differently** —
+fine-tune per group, cross-learn inside a group, one model per group. The possibilities there
+are endless, which is exactly why the question deserves an answer before any of them is built.
