@@ -1,0 +1,3 @@
+PDFs, slides and any other file linked directly from index.qmd go in this folder.
+`_quarto.yml` lists `files/**` under `resources:`, so everything here is copied
+into the built site as-is. Delete this note once there is a real file beside it.

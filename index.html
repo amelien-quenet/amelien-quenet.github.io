@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Investigating Chronos-2</title>
+<title>Amélien Quenet</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -36,8 +36,6 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<script src="site_libs/quarto-listing/list.min.js"></script>
-<script src="site_libs/quarto-listing/quarto-listing.js"></script>
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
@@ -75,78 +73,20 @@ ul.task-list li input[type="checkbox"] {
     "search-label": "Search"
   }
 }</script>
-<script>
 
-  window.document.addEventListener("DOMContentLoaded", function (_event) {
-    const listingTargetEl = window.document.querySelector('#listing-series .list');
-    if (!listingTargetEl) {
-      // No listing discovered, do not attach.
-      return; 
-    }
-
-    const options = {
-      valueNames: ['listing-title','listing-description','listing-reading-time','listing-date',{ data: ['index'] },{ data: ['categories'] },{ data: ['listing-date-sort'] },{ data: ['listing-file-modified-sort'] }],
-      
-      searchColumns: ["listing-date","listing-title","listing-author","listing-image","listing-description"],
-    };
-
-    window['quarto-listings'] = window['quarto-listings'] || {};
-    window['quarto-listings']['listing-series'] = new List('listing-series', options);
-
-    if (window['quarto-listing-loaded']) {
-      window['quarto-listing-loaded']();
-    }
-  });
-
-  window.addEventListener('hashchange',() => {
-    if (window['quarto-listing-loaded']) {
-      window['quarto-listing-loaded']();
-    }
-  })
-  </script>
-
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 <link rel="stylesheet" href="styles.css">
-<link rel="alternate" type="application/rss+xml" title="Investigating Chronos-2" href="index.xml" data-external="1"></head>
+</head>
 
-<body class="nav-fixed quarto-light">
+<body class="nav-fixed fullcontent quarto-light">
 
 <div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+  <header id="quarto-header" class="headroom fixed-top">
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
-    <span class="navbar-title">Investigating Chronos-2</span>
+    <span class="navbar-title">Amélien Quenet</span>
     </a>
   </div>
             <div id="quarto-search" class="" title="Search"></div>
@@ -160,7 +100,7 @@ window.Quarto = {
 <span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/amelien-quenet/m5-chronos2"> <i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/amelien-quenet"> <i class="bi bi-github" role="img">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -172,127 +112,57 @@ window.Quarto = {
     </nav>
 </header>
 <!-- content -->
-<header id="title-block-header" class="quarto-title-block default page-columns page-full">
-  <div class="quarto-title-banner page-columns page-full">
-    <div class="quarto-title column-page-left">
-      <h1 class="title">Investigating Chronos-2</h1>
-            <p class="subtitle lead">What a time-series foundation model does, and does not, buy you on a hard retail panel</p>
-                      </div>
-  </div>
-    
-  
-  <div class="quarto-title-meta column-page-left">
-
-      
-    
-      
-    </div>
-    
-  
-  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
-   
-  <ul>
-  <li><a href="#the-question" id="toc-the-question" class="nav-link active" data-scroll-target="#the-question">The question</a></li>
-  <li><a href="#what-the-three-parts-do" id="toc-what-the-three-parts-do" class="nav-link" data-scroll-target="#what-the-three-parts-do">What the three parts do</a></li>
-  <li><a href="#how-to-read-the-numbers" id="toc-how-to-read-the-numbers" class="nav-link" data-scroll-target="#how-to-read-the-numbers">How to read the numbers</a></li>
-  </ul>
-</nav>
-    </div>
+    
 <!-- main -->
-<main class="content quarto-banner-title-block column-page-left" id="quarto-document-content">
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Amélien Quenet</h1>
+</div>
 
 
 
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
 
 
-<section id="the-question" class="level2">
-<h2 class="anchored" data-anchor-id="the-question">The question</h2>
-<p>Foundation models for time series are sold as a replacement for the feature engineering that gradient-boosted trees need: no lags to design, no calendar to encode, no per-series training. This series tests that claim on data where it is hard to be right — the <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">M5 Forecasting — Accuracy</a> panel, 30,490 item×store series of daily Walmart sales, 68% of days zero, a median series selling 0.45 units a day, forecast 28 days ahead.</p>
-<p>M5 was chosen for two specific reasons rather than its fame. Chronos-2 has <strong>no training leakage</strong> on it, so a zero-shot number means something. And its dynamics are mostly <strong>endogenous</strong>: on fev-bench the multivariate model beats its univariate sibling by a hair (WQL 0.555 vs 0.559), which says the cross-series machinery has little to feed on here. That makes it a clean test of the model itself rather than of the covariates one can invent around it.</p>
-</section>
-<section id="what-the-three-parts-do" class="level2">
-<h2 class="anchored" data-anchor-id="what-the-three-parts-do">What the three parts do</h2>
-<p>The order matters: each part exists because the previous one left a question open. The third one ends without a verdict, and that is reported rather than smoothed over — the test it runs disqualifies its own key instrument, which is more useful to know than a tidy conclusion would have been.</p>
-<div id="listing-series" class="quarto-listing quarto-listing-container-default">
-<div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="TTUlMkNYR0Jvb3N0JTJDZXZhbHVhdGlvbg==" data-listing-date-sort="1793487600000" data-listing-file-modified-sort="1794146231508" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10" data-listing-word-count-sort="1861">
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/01-xgboost/index.html" class="no-external">A baseline that earns its place</a>
-</h3>
-<div class="delink listing-description"><a href="./posts/01-xgboost/index.html" class="no-external">
-<p>Reproducing a top-4% M5 gradient-boosting solution, and building the evaluation harness every later claim rests on. Fifty-two engineered features beat a 28-day mean by less than one point.</p>
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/01-xgboost/index.html" class="no-external">
-<div class="listing-date">
-Nov 1, 2026
-</div>
-<div class="listing-reading-time">10 min</div>
-</a>
-</div>
-</div>
-<div class="quarto-post image-right" data-index="1" data-categories="TTUlMkNDaHJvbm9zLTIlMkNmb3VuZGF0aW9uJTIwbW9kZWxzJTJDZmluZS10dW5pbmc=" data-listing-date-sort="1793487600000" data-listing-file-modified-sort="1794146231915" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="23" data-listing-word-count-sort="4451">
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/02-chronos2/index.html" class="no-external">Chronos-2, knob by knob</a>
-</h3>
-<div class="delink listing-description"><a href="./posts/02-chronos2/index.html" class="no-external">
-<p>Zero-shot, the model beats a 52-feature baseline by 8% out of the box. Then four reasonable ideas make it worse, a 46-length context sweep buys 0.1%, and a LoRA fine-tune is a wash.</p>
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/02-chronos2/index.html" class="no-external">
-<div class="listing-date">
-Nov 1, 2026
-</div>
-<div class="listing-reading-time">23 min</div>
-</a>
-</div>
-</div>
-<div class="quarto-post image-right" data-index="2" data-categories="TTUlMkNkaWFnbm9zdGljcyUyQ2NsdXN0ZXJpbmclMkNzdGF0aXN0aWNz" data-listing-date-sort="1794006000000" data-listing-file-modified-sort="1794145197380" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="26" data-listing-word-count-sort="5036">
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/03-ceiling/index.html" class="no-external">Difficulty belongs to the item, and mostly to its volume</a>
-</h3>
-<div class="delink listing-description"><a href="./posts/03-ceiling/index.html" class="no-external">
-<p>Forty-two per cent of the error sits on the identity of the item and two per cent on the week. Two thirds of that is volume. The third that is left is real, and it is not in the weekly shape — which rules out the one axis I had built the machinery to test.</p>
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/03-ceiling/index.html" class="no-external">
-<div class="listing-date">
-Nov 7, 2026
-</div>
-<div class="listing-reading-time">26 min</div>
-</a>
-</div>
-</div>
-</div>
-<div class="listing-no-matching d-none">No matching items</div>
-</div>
-</section>
-<section id="how-to-read-the-numbers" class="level2">
-<h2 class="anchored" data-anchor-id="how-to-read-the-numbers">How to read the numbers</h2>
-<p>Three commitments, kept throughout, because they are what separates a benchmark from a demonstration:</p>
+</header>
+
+
+<!-- ───────────────────────────────────────────────────────────────────────────
+     EDIT 1 OF 2 — the intro.
+     The line below is the whole introduction. Rewrite it, grow it into a
+     paragraph, or delete it entirely. Nothing else on the site depends on it.
+     ─────────────────────────────────────────────────────────────────────────── -->
+<p>Machine learning, mostly time series.</p>
+<!-- ───────────────────────────────────────────────────────────────────────────
+     EDIT 2 OF 2 — the list.
+     One bullet per thing. To add an entry, copy a bullet and change three parts:
+
+       - **[Title](where-it-lives)** — one sentence. [Extra link](...)
+
+     Where it lives:
+       · another page on this site   →  /m5-chronos2/        (leading slash)
+       · a file you ship yourself    →  files/name.pdf       (put it in files/)
+       · anything external           →  https://...
+
+     Order is whatever order you write them in.
+     ─────────────────────────────────────────────────────────────────────────── -->
 <ul>
-<li><strong>Every choice is made on a validation origin</strong> (2016-03-27) and measured once on a test origin (2016-04-24). Nothing is selected on the window it is scored on.</li>
-<li><strong>The evaluation roster is frozen</strong> before any model runs, and every metric is reported next to the number of series it was computed on.</li>
-<li><strong>Any two numbers whose difference is interpreted share their hardware.</strong> CPU and GPU disagree in the third decimal of WQL, which is enough to invert a close ranking, so the Chronos-2 corpus is entirely GPU and every artifact carries the device it was produced on.</li>
+<li><p><strong><a href="./m5-chronos2/">Chronos-2 on the M5 benchmark</a></strong> — a time-series foundation model against a 52-feature gradient-boosted baseline, and what the error that survives both of them is made of. <a href="https://github.com/amelien-quenet/m5-chronos2">Code</a></p></li>
+<li><p><strong><a href="files/paper.pdf">Title of the paper</a></strong> — one sentence saying what it is. Drop the PDF into <code>files/</code> and point the link at its filename.</p></li>
 </ul>
-<p>Code and artifacts: <a href="https://github.com/amelien-quenet/m5-chronos2"><code>m5-chronos2</code></a>.</p>
-<!-- TODO (yours, not mine to invent): a short paragraph on why you did this —
-     first blog, what you wanted to learn, who you are writing for. -->
 
 
-
-</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -368,7 +238,7 @@ Nov 7, 2026
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/amelien-quenet\.github\.io");
+        var filterRegex = new RegExp("https:\/\/amelien-quenet\.fr");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
