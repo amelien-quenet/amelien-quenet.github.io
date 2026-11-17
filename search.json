@@ -4,6 +4,6 @@
     "href": "index.html",
     "title": "Amélien Quenet",
     "section": "",
-    "text": "Machine learning, mostly time series.\n\n\nChronos-2 on the M5 benchmark — a time-series foundation model against a 52-feature gradient-boosted baseline, and what the error that survives both of them is made of. Code\nTitle of the paper — one sentence saying what it is. Drop the PDF into files/ and point the link at its filename."
+    "text": "Travaux personnels ou de groupe, en mathématiques ou en data science/machine learning :\n\n\nChronos-2 on the M5 benchmark — a time-series foundation model against a 52-feature gradient-boosted baseline, and what the error that survives both of them is made of. Code\nClassification des groupes de symétrie du pavage — Catalogue complet des pavages réguliers du plan à isométrie près. Drop the PDF into files/ and point the link at its filename."
   }
 ]
